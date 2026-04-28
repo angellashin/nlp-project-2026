@@ -1,0 +1,36 @@
+.DS_Store
+
+# Local agent/runtime state
+.omx/
+
+# Course-provided PDFs and sample reports should stay local unless explicitly cleared.
+lecture 5.pdf
+Good Final Report Samples 2024/
+Good Final Report Samples 2025/
+
+# Data and model artifacts
+data/raw/
+data/interim/
+data/external/
+checkpoints/
+models/
+wandb/
+mlruns/
+
+# Large generated ML files
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.bin
+
+# Python/Jupyter noise
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Experiment scratch space
+tmp/
+scratch/
