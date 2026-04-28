@@ -1,0 +1,12 @@
+# Core experiment runtime
+torch
+transformers
+accelerate
+sentencepiece
+protobuf
+PyYAML
+
+# Optional plotting/notebook analysis
+matplotlib
+jupyter
+

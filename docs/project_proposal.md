@@ -221,11 +221,13 @@ Practical first-pass rule:
 Recommended initial version:
 
 - source post + 1 to 3 same-thread `comment` replies outside the target path + target reply.
+- If no same-thread non-path comment is available, use a same-event `comment` reply from another thread as a marked fallback.
 
 Sanity check:
 
 - manually inspect 50 sampled contexts;
 - verify they are same-topic but usually not directly explanatory for the target.
+- report same-thread versus same-event fallback coverage.
 
 ### C3. Conflicting / Misleading Context
 
@@ -645,4 +647,3 @@ The strongest version of this project under the current constraints is:
 - macro-F1, per-class F1, support/deny fragility, and paired error analysis as the main evidence.
 
 This keeps the project research-shaped, compute-realistic, and interpretable for a 3-person team working for 1-2 months on one NVIDIA L4 GPU.
-

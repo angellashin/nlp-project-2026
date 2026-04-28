@@ -12,10 +12,13 @@ Good Final Report Samples 2025/
 data/raw/
 data/interim/
 data/external/
+data/processed/
+data/variants/
 checkpoints/
 models/
 wandb/
 mlruns/
+results/
 
 # Large generated ML files
 *.ckpt

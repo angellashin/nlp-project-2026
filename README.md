@@ -10,6 +10,7 @@ This repository is for a Korea University NLP final project studying how small l
 ## Current Documents
 
 - [Project proposal](docs/project_proposal.md): source-of-truth framing, dataset scope, context conditions, model plan, evaluation, risks, and roadmap.
+- [MVP implementation guide](docs/implementation_mvp.md): commands for parsing data, building context variants, running prompting, evaluating, and extracting error-analysis cases.
 - [Lecture 5 requirements notes](project_notes/lecture5_project_requirements.md): course project expectations summarized from the lecture slides.
 
 ## Scope
@@ -21,4 +22,12 @@ This repository is for a Korea University NLP final project studying how small l
 
 ## Repository Policy
 
-Course-provided PDFs, sample reports, raw datasets, model checkpoints, and local runtime state are intentionally ignored by Git. Keep shared work in `docs/`, `src/`, `configs/`, and lightweight `results/` artifacts.
+Course-provided PDFs, sample reports, raw/processed datasets, generated results, model checkpoints, and local runtime state are intentionally ignored by Git. Keep shared reusable work in `docs/`, `src/`, `configs/`, and `tests/`.
+
+## Quick Smoke Test
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+The core data-prep/evaluation scripts use only the Python standard library. GPU model inference additionally requires the packages in `requirements.txt`.
