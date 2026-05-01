@@ -187,6 +187,12 @@ def conflict_candidates(
     if same_event:
         return same_event, "same_event_fallback_conflict"
 
+    same_platform, global_pool = cross_thread_conflict_candidates(target, by_event, usable)
+    if same_platform:
+        return same_platform, "same_platform_fallback_conflict"
+    if global_pool:
+        return global_pool, "global_fallback_conflict"
+
     any_different = [
         node
         for node in by_thread[target["thread_id"]]
@@ -199,9 +205,62 @@ def conflict_candidates(
     return any_different, "same_thread_any_different_label"
 
 
+def cross_thread_conflict_candidates(
+    target: dict[str, Any],
+    by_event: dict[Tuple[str, Optional[str]], list[dict[str, Any]]],
+    usable,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    seen_ids: set[str] = set()
+    same_platform: list[dict[str, Any]] = []
+    global_pool: list[dict[str, Any]] = []
+    for (platform, _event), nodes in by_event.items():
+        for node in nodes:
+            if node["node_id"] in seen_ids or node["thread_id"] == target["thread_id"]:
+                continue
+            seen_ids.add(node["node_id"])
+            if not usable(node, allow_path=True, same_thread=False):
+                continue
+            if platform == target["platform"]:
+                same_platform.append(node)
+            global_pool.append(node)
+    return same_platform, global_pool
+
+
+def mixed_conflict_candidates(
+    target: dict[str, Any],
+    conflict_pool: list[dict[str, Any]],
+    conflict_note: str,
+    by_event: dict[Tuple[str, Optional[str]], list[dict[str, Any]]],
+    used_ids: set[str],
+) -> tuple[list[dict[str, Any]], str]:
+    preferred = PREFERRED_CONFLICTS.get(target["label"], [label for label in LABELS if label != target["label"]])
+
+    non_overlap = [node for node in conflict_pool if node["node_id"] not in used_ids]
+    if non_overlap:
+        return non_overlap, f"{conflict_note}_not_in_useful"
+
+    def usable(node: dict[str, Any], allow_path: bool, same_thread: bool) -> bool:
+        return (
+            not node["is_source_target"]
+            and node["node_id"] != target["target_id"]
+            and node["node_id"] not in used_ids
+            and node.get("text")
+            and node.get("label") in preferred
+        )
+
+    same_platform, global_pool = cross_thread_conflict_candidates(target, by_event, usable)
+    if same_platform:
+        return same_platform, "same_platform_fallback_conflict_not_in_useful"
+    if global_pool:
+        return global_pool, "global_fallback_conflict_not_in_useful"
+    return [], "no_non_overlapping_conflict_available"
+
+
 def source_from_note(note: str) -> str:
     if note.startswith("same_event"):
         return "same_event_fallback"
+    if note.startswith("same_platform") or note.startswith("global"):
+        return "cross_thread_fallback"
     if note.startswith("same_thread"):
         return "same_thread"
     return "none"
@@ -279,16 +338,18 @@ def build_variants_for_target(target: dict[str, Any], indexes: dict[str, Any], s
 
     mixed_items = useful_items(target, by_id)
     seen = {item["node_id"] for item in mixed_items}
-    for node in conflict:
+    mixed_pool, mixed_note = mixed_conflict_candidates(target, conflict_pool, conflict_note, by_event, seen)
+    mixed_conflict = stable_sample(mixed_pool, 1, seed, f"{target['target_id']}:mixed_conflicting")
+    for node in mixed_conflict:
         if node["node_id"] not in seen:
-            mixed_items.append(node_context_item(node, "conflicting_reply", conflict_note))
+            mixed_items.append(node_context_item(node, "conflicting_reply", mixed_note))
     variants.append(
         make_variant(
             target,
             "mixed",
             mixed_items,
-            source_from_note(conflict_note) if conflict else "same_thread",
-            [conflict_note, f"conflict_count={len(conflict)}", "useful_plus_conflict"],
+            source_from_note(mixed_note) if mixed_conflict else "same_thread",
+            [mixed_note, f"conflict_count={len(mixed_conflict)}", "useful_plus_conflict"],
         )
     )
 
@@ -304,9 +365,12 @@ def validate_variant(variant: dict[str, Any]) -> None:
         roles = {item["role"] for item in variant["context_items"]}
         if "source" not in roles:
             raise AssertionError(f"Useful context missing source: {variant['example_id']}")
-    if variant["condition"] == "conflicting":
-        for item in variant["context_items"]:
-            if item["role"] == "conflicting_reply" and item.get("label_if_available") == variant["label"]:
+    if variant["condition"] in {"conflicting", "mixed"}:
+        conflict_items = [item for item in variant["context_items"] if item["role"] == "conflicting_reply"]
+        if not conflict_items:
+            raise AssertionError(f"Missing conflicting context: {variant['example_id']}")
+        for item in conflict_items:
+            if item.get("label_if_available") == variant["label"]:
                 raise AssertionError(f"Conflicting context has same label: {variant['example_id']}")
 
 

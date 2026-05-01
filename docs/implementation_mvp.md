@@ -39,6 +39,8 @@ Outputs include `{split}_context_variants.jsonl`, `{split}_prompts_qwen.jsonl`, 
 
 For C2 irrelevant context, the builder first uses same-thread non-path `comment` replies. If none exist, it falls back to same-event `comment` replies from a different thread and records `same_event_fallback_comment` in coverage metadata.
 
+For C3/C4 conflicting context, the builder requires an actual different-label `conflicting_reply`. It first uses same-thread candidates, then same-event candidates, then a marked same-platform cross-thread fallback only when needed.
+
 ## 4. Run Sanity Baseline
 
 ```bash

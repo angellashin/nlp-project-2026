@@ -249,6 +249,7 @@ Recommended initial version:
 Fallback if same-thread conflicting examples are unavailable:
 
 - use same event/topic conflicting reply from a different thread;
+- if still unavailable, use a same-platform cross-thread conflicting reply and mark it as a weaker fallback;
 - mark as `same_event_conflict` rather than `same_thread_conflict`.
 
 Sanity check:
