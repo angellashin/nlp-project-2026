@@ -16,6 +16,7 @@ class EvaluateTest(unittest.TestCase):
                 [
                     {
                         "model": "m",
+                        "platform": "twitter",
                         "condition": "useful",
                         "gold_label": "support",
                         "metric_label": "support",
@@ -23,6 +24,7 @@ class EvaluateTest(unittest.TestCase):
                     },
                     {
                         "model": "m",
+                        "platform": "twitter",
                         "condition": "useful",
                         "gold_label": "deny",
                         "metric_label": "deny",
@@ -30,6 +32,7 @@ class EvaluateTest(unittest.TestCase):
                     },
                     {
                         "model": "m",
+                        "platform": "twitter",
                         "condition": "conflicting",
                         "gold_label": "support",
                         "metric_label": "comment",
@@ -37,6 +40,7 @@ class EvaluateTest(unittest.TestCase):
                     },
                     {
                         "model": "m",
+                        "platform": "twitter",
                         "condition": "conflicting",
                         "gold_label": "deny",
                         "metric_label": "deny",
@@ -47,11 +51,13 @@ class EvaluateTest(unittest.TestCase):
             payload = evaluate(predictions, tmp_path / "tables")
             self.assertTrue((tmp_path / "tables" / "summary_metrics.csv").exists())
             self.assertTrue((tmp_path / "tables" / "context_gaps.csv").exists())
+            self.assertTrue((tmp_path / "tables" / "summary_by_platform.csv").exists())
+            self.assertTrue((tmp_path / "tables" / "context_gaps_by_platform.csv").exists())
             useful = next(row for row in payload["summary"] if row["condition"] == "useful")
             self.assertEqual(useful["accuracy"], 1.0)
             self.assertGreater(payload["context_gaps"][0]["macro_f1_drop"], 0)
+            self.assertIn("platform", payload["slices"])
 
 
 if __name__ == "__main__":
     unittest.main()
-

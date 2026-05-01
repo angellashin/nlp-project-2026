@@ -4,13 +4,14 @@ import argparse
 import csv
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from src.common.io import ensure_dir, read_jsonl, write_json
 
 
 LABELS = ["support", "deny", "query", "comment"]
 USEFUL_CONDITION = "useful"
+SLICE_KEYS = ["platform"]
 
 
 def safe_div(num: float, den: float) -> float:
@@ -25,6 +26,16 @@ def group_predictions(rows: list[dict[str, Any]]) -> dict[tuple[str, str], list[
     grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         grouped[(row.get("model", "unknown"), row["condition"])].append(row)
+    return grouped
+
+
+def group_by_dimensions(
+    rows: list[dict[str, Any]],
+    dimensions: list[str],
+) -> dict[tuple[Any, ...], list[dict[str, Any]]]:
+    grouped: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        grouped[tuple(row.get(dimension) or "unknown" for dimension in dimensions)].append(row)
     return grouped
 
 
@@ -74,6 +85,36 @@ def summarize_group(model: str, condition: str, rows: list[dict[str, Any]]) -> d
     }
 
 
+def summary_to_rows(
+    summary: dict[str, Any],
+    extra_fields: Optional[dict[str, Any]] = None,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    extra_fields = extra_fields or {}
+    summary_row = {
+        **extra_fields,
+        "model": summary["model"],
+        "condition": summary["condition"],
+        "n": summary["n"],
+        "accuracy": round(summary["accuracy"], 6),
+        "macro_f1": round(summary["macro_f1"], 6),
+        "invalid_rate": round(summary["invalid_rate"], 6),
+    }
+    per_class_rows = [
+        {
+            **extra_fields,
+            "model": summary["model"],
+            "condition": summary["condition"],
+            "label": label,
+            "precision": round(metrics["precision"], 6),
+            "recall": round(metrics["recall"], 6),
+            "f1": round(metrics["f1"], 6),
+            "support": int(metrics["support"]),
+        }
+        for label, metrics in summary["per_class"].items()
+    ]
+    return summary_row, per_class_rows
+
+
 def write_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) -> None:
     ensure_dir(path.parent)
     with path.open("w", encoding="utf-8", newline="") as f:
@@ -92,6 +133,52 @@ def write_confusion(path: Path, matrix: dict[str, dict[str, int]]) -> None:
             writer.writerow([gold] + [matrix[gold][pred] for pred in LABELS])
 
 
+def context_gap_rows(summary_rows: list[dict[str, Any]], slice_keys: Optional[list[str]] = None) -> list[dict[str, Any]]:
+    slice_keys = slice_keys or []
+    by_key = {
+        tuple(row[key] for key in [*slice_keys, "model", "condition"]): row for row in summary_rows
+    }
+    gap_rows: list[dict[str, Any]] = []
+    slice_values = sorted({tuple(row[key] for key in slice_keys) for row in summary_rows}) or [()]
+    for slice_value in slice_values:
+        slice_prefix = dict(zip(slice_keys, slice_value))
+        models = sorted(
+            {
+                row["model"]
+                for row in summary_rows
+                if tuple(row[key] for key in slice_keys) == slice_value
+            }
+        )
+        conditions = sorted(
+            {
+                row["condition"]
+                for row in summary_rows
+                if tuple(row[key] for key in slice_keys) == slice_value
+            }
+        )
+        for model in models:
+            useful = by_key.get((*slice_value, model, USEFUL_CONDITION))
+            if not useful:
+                continue
+            for condition in conditions:
+                if condition == USEFUL_CONDITION:
+                    continue
+                other = by_key.get((*slice_value, model, condition))
+                if not other:
+                    continue
+                gap_rows.append(
+                    {
+                        **slice_prefix,
+                        "model": model,
+                        "from_condition": USEFUL_CONDITION,
+                        "to_condition": condition,
+                        "macro_f1_drop": round(float(useful["macro_f1"]) - float(other["macro_f1"]), 6),
+                        "accuracy_drop": round(float(useful["accuracy"]) - float(other["accuracy"]), 6),
+                    }
+                )
+    return gap_rows
+
+
 def evaluate(predictions: Path, out_dir: Path) -> dict[str, Any]:
     rows = read_jsonl(predictions)
     summaries = [
@@ -102,56 +189,51 @@ def evaluate(predictions: Path, out_dir: Path) -> dict[str, Any]:
     summary_rows: list[dict[str, Any]] = []
     per_class_rows: list[dict[str, Any]] = []
     for summary in summaries:
-        summary_rows.append(
-            {
-                "model": summary["model"],
-                "condition": summary["condition"],
-                "n": summary["n"],
-                "accuracy": round(summary["accuracy"], 6),
-                "macro_f1": round(summary["macro_f1"], 6),
-                "invalid_rate": round(summary["invalid_rate"], 6),
-            }
-        )
-        for label, metrics in summary["per_class"].items():
-            per_class_rows.append(
-                {
-                    "model": summary["model"],
-                    "condition": summary["condition"],
-                    "label": label,
-                    "precision": round(metrics["precision"], 6),
-                    "recall": round(metrics["recall"], 6),
-                    "f1": round(metrics["f1"], 6),
-                    "support": int(metrics["support"]),
-                }
-            )
+        summary_row, class_rows = summary_to_rows(summary)
+        summary_rows.append(summary_row)
+        per_class_rows.extend(class_rows)
         write_confusion(
             out_dir / f"confusion_{sanitize(summary['model'])}_{summary['condition']}.csv",
             summary["confusion"],
         )
 
-    by_model_condition = {
-        (row["model"], row["condition"]): row for row in summary_rows
-    }
-    gap_rows: list[dict[str, Any]] = []
-    for model in sorted({row["model"] for row in summary_rows}):
-        useful = by_model_condition.get((model, USEFUL_CONDITION))
-        if not useful:
+    gap_rows = context_gap_rows(summary_rows)
+
+    slice_payloads: dict[str, Any] = {}
+    for slice_key in SLICE_KEYS:
+        if not any(row.get(slice_key) for row in rows):
             continue
-        for condition in sorted({row["condition"] for row in summary_rows}):
-            if condition == USEFUL_CONDITION:
-                continue
-            other = by_model_condition.get((model, condition))
-            if not other:
-                continue
-            gap_rows.append(
-                {
-                    "model": model,
-                    "from_condition": USEFUL_CONDITION,
-                    "to_condition": condition,
-                    "macro_f1_drop": round(float(useful["macro_f1"]) - float(other["macro_f1"]), 6),
-                    "accuracy_drop": round(float(useful["accuracy"]) - float(other["accuracy"]), 6),
-                }
-            )
+        slice_summary_rows: list[dict[str, Any]] = []
+        slice_per_class_rows: list[dict[str, Any]] = []
+        dimensions = [slice_key, "model", "condition"]
+        for key_values, group_rows in sorted(group_by_dimensions(rows, dimensions).items()):
+            slice_value, model, condition = key_values
+            summary = summarize_group(model, condition, group_rows)
+            summary_row, class_rows = summary_to_rows(summary, {slice_key: slice_value})
+            slice_summary_rows.append(summary_row)
+            slice_per_class_rows.extend(class_rows)
+        slice_gap_rows = context_gap_rows(slice_summary_rows, [slice_key])
+
+        write_csv(
+            out_dir / f"summary_by_{slice_key}.csv",
+            slice_summary_rows,
+            [slice_key, "model", "condition", "n", "accuracy", "macro_f1", "invalid_rate"],
+        )
+        write_csv(
+            out_dir / f"per_class_by_{slice_key}.csv",
+            slice_per_class_rows,
+            [slice_key, "model", "condition", "label", "precision", "recall", "f1", "support"],
+        )
+        write_csv(
+            out_dir / f"context_gaps_by_{slice_key}.csv",
+            slice_gap_rows,
+            [slice_key, "model", "from_condition", "to_condition", "macro_f1_drop", "accuracy_drop"],
+        )
+        slice_payloads[slice_key] = {
+            "summary": slice_summary_rows,
+            "per_class": slice_per_class_rows,
+            "context_gaps": slice_gap_rows,
+        }
 
     write_csv(
         out_dir / "summary_metrics.csv",
@@ -168,7 +250,12 @@ def evaluate(predictions: Path, out_dir: Path) -> dict[str, Any]:
         gap_rows,
         ["model", "from_condition", "to_condition", "macro_f1_drop", "accuracy_drop"],
     )
-    payload = {"summary": summary_rows, "per_class": per_class_rows, "context_gaps": gap_rows}
+    payload = {
+        "summary": summary_rows,
+        "per_class": per_class_rows,
+        "context_gaps": gap_rows,
+        "slices": slice_payloads,
+    }
     write_json(out_dir / "metrics.json", payload)
     return payload
 
@@ -186,4 +273,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

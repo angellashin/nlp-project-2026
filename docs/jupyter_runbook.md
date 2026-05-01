@@ -12,6 +12,37 @@ notebooks/rumoureval_mvp_runner.ipynb
 
 In JupyterLab, choose **Run > Run All Cells** for the default smoke test.
 
+## If Repo Root Detection Fails
+
+If the first notebook cell raises:
+
+```text
+RuntimeError: Could not find repo root
+```
+
+it usually means the notebook was opened outside the cloned repo, or only the `.ipynb` file was uploaded to JupyterLab.
+
+In a Jupyter terminal, run:
+
+```bash
+cd /home/ubuntu
+git clone https://github.com/angellashin/nlp-project-2026.git
+```
+
+Then open this notebook from the cloned repo:
+
+```text
+/home/ubuntu/nlp-project-2026/notebooks/rumoureval_mvp_runner.ipynb
+```
+
+If the repo already exists somewhere else, edit the first code cell:
+
+```python
+MANUAL_PROJECT_ROOT = "/absolute/path/to/nlp-project-2026"
+```
+
+Then run all cells again.
+
 ## What The Default Run Does
 
 The notebook default is intentionally conservative. It runs the complete data and evaluation setup, then performs a small Qwen smoke inference:
@@ -113,6 +144,9 @@ Metrics:
 results/tables/{run_id}/summary_metrics.csv
 results/tables/{run_id}/per_class_metrics.csv
 results/tables/{run_id}/context_gaps.csv
+results/tables/{run_id}/summary_by_platform.csv
+results/tables/{run_id}/per_class_by_platform.csv
+results/tables/{run_id}/context_gaps_by_platform.csv
 results/tables/{run_id}/confusion_*.csv
 ```
 
@@ -132,6 +166,6 @@ For teammates:
 4. Check `results/tables/dev_qwen25_05b_smoke/summary_metrics.csv`.
 5. If smoke is okay, set `RUN_FULL_DEV = True`.
 6. Run again from **0. Run Settings** onward.
-7. Share the generated `summary_metrics.csv`, `per_class_metrics.csv`, `context_gaps.csv`, and error cases with the team.
+7. Share the generated `summary_metrics.csv`, `per_class_metrics.csv`, `context_gaps.csv`, platform-sliced metrics, and error cases with the team.
 
 Do not commit `data/` or `results/` outputs unless the team explicitly decides to version a small derived artifact.

@@ -115,6 +115,8 @@ class ContextVariantTest(unittest.TestCase):
         for variant in variants:
             self.assertNotIn("target", [item["node_id"] for item in variant["context_items"]])
             self.assertIn("Target reply:", variant["prompt_text"])
+            self.assertEqual(variant["platform"], "twitter-english")
+            self.assertEqual(variant["depth"], 2)
         conflict = next(row for row in variants if row["condition"] == "conflicting")
         conflict_labels = [
             item["label_if_available"]
@@ -126,4 +128,3 @@ class ContextVariantTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

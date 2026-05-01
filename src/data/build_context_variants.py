@@ -277,9 +277,13 @@ def make_variant(
     return {
         "example_id": f"{target['split']}:{target['target_id']}:{condition}",
         "split": target["split"],
+        "platform": target.get("platform"),
+        "event": target.get("event"),
         "target_id": target["target_id"],
         "thread_id": target["thread_id"],
         "source_id": target["source_id"],
+        "parent_id": target.get("parent_id"),
+        "depth": target.get("depth"),
         "label": target["label"],
         "condition": condition,
         "context_items": context_items,
