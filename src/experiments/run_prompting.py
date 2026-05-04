@@ -39,7 +39,10 @@ def load_model(model_name: str, dtype: str, device_map: str) -> tuple[Any, Any]:
         "float32": torch.float32,
         "auto": "auto",
     }[dtype]
+    started = time.time()
+    print(f"[load] Loading tokenizer for {model_name}", flush=True)
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    print(f"[load] Loading model for {model_name} with dtype={dtype}, device_map={device_map}", flush=True)
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=torch_dtype,
@@ -47,7 +50,19 @@ def load_model(model_name: str, dtype: str, device_map: str) -> tuple[Any, Any]:
         trust_remote_code=True,
     )
     model.eval()
+    print(f"[load] Model ready in {time.time() - started:.1f}s", flush=True)
     return tokenizer, model
+
+
+def count_selected_variants(variants_path: Path, conditions: Optional[Set[str]], limit: Optional[int]) -> int:
+    total = 0
+    for row in iter_jsonl(variants_path):
+        if conditions and row["condition"] not in conditions:
+            continue
+        if limit is not None and total >= limit:
+            break
+        total += 1
+    return total
 
 
 def format_chat(tokenizer: Any, prompt: str) -> str:
@@ -89,7 +104,13 @@ def run_prompting(
     device_map: str,
     max_new_tokens: int,
     prompt_version: str,
+    log_every: int,
 ) -> Path:
+    planned_total = count_selected_variants(variants_path, conditions, limit)
+    print(
+        f"[run] model={model_name} variants={variants_path} planned_predictions={planned_total}",
+        flush=True,
+    )
     tokenizer, model = load_model(model_name, dtype, device_map)
     started = time.time()
     predictions = []
@@ -140,6 +161,17 @@ def run_prompting(
                 "prompt_version": prompt_version,
             }
         )
+        if log_every > 0 and (total == 1 or total % log_every == 0 or total == planned_total):
+            elapsed = time.time() - started
+            rate = total / elapsed if elapsed else 0.0
+            remaining = planned_total - total
+            eta = remaining / rate if rate else 0.0
+            print(
+                "[progress] "
+                f"{total}/{planned_total} predictions "
+                f"elapsed={elapsed:.1f}s eta={eta:.1f}s invalid={invalid_count}",
+                flush=True,
+            )
 
     output = out_dir / "predictions.jsonl"
     write_jsonl(output, predictions)
@@ -156,6 +188,7 @@ def run_prompting(
             "device_map": device_map,
             "max_new_tokens": max_new_tokens,
             "prompt_version": prompt_version,
+            "log_every": log_every,
         },
     )
     return output
@@ -172,6 +205,7 @@ def main() -> None:
     parser.add_argument("--device-map", default="auto")
     parser.add_argument("--max-new-tokens", type=int, default=8)
     parser.add_argument("--prompt-version", default="qwen_mvp_v1")
+    parser.add_argument("--log-every", type=int, default=100)
     args = parser.parse_args()
 
     out_dir = ensure_dir(args.out_dir)
@@ -186,6 +220,7 @@ def main() -> None:
         args.device_map,
         args.max_new_tokens,
         args.prompt_version,
+        args.log_every,
     )
     print(output)
 
