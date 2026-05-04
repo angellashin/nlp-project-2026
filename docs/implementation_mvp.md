@@ -37,9 +37,13 @@ python -m src.data.build_context_variants \
 
 Outputs include `{split}_context_variants.jsonl`, `{split}_prompts_qwen.jsonl`, and coverage JSON files.
 
+The rendered prompt intentionally does not expose condition names such as `useful`, `conflicting`, or `mixed`. It also treats `comment` as the conservative fallback label when the target reply does not explicitly support, deny, or query.
+
 For C2 irrelevant context, the builder first uses same-thread non-path `comment` replies. If none exist, it falls back to same-event `comment` replies from a different thread and records `same_event_fallback_comment` in coverage metadata.
 
 For C3/C4 conflicting context, the builder requires an actual different-label `conflicting_reply`. It first uses same-thread candidates, then same-event candidates, then a marked same-platform cross-thread fallback only when needed.
+
+Each variant carries analysis metadata including `platform`, `depth_bucket`, `parent_available`, `context_source`, `mixed_valid`, relation notes, and context item counts. Use these fields for platform/depth/fallback robustness checks before making context-error claims.
 
 ## 4. Run Sanity Baseline
 
@@ -55,6 +59,19 @@ python -m src.experiments.evaluate \
 
 This should show why accuracy is misleading under class imbalance.
 
+The evaluator also writes:
+
+- `predicted_label_distribution.csv`
+- `summary_by_platform.csv`
+- `summary_by_depth_bucket.csv`
+- `summary_by_context_source.csv`
+- `summary_by_parent_available.csv`
+- `summary_by_validity_subset.csv`
+- `paired_flip_rates.csv`
+- `paired_flip_cases.csv`
+
+`no_fallback_only` is a target-level validity subset: all non-`reply_only` conditions for that target must use same-thread context. This keeps context-gap comparisons from mixing different target sets across conditions.
+
 ## 5. Run Qwen Smoke Test
 
 ```bash
@@ -64,7 +81,8 @@ python -m src.experiments.run_prompting \
   --model Qwen/Qwen2.5-0.5B-Instruct \
   --limit 100 \
   --dtype float16 \
-  --max-new-tokens 8
+  --max-new-tokens 8 \
+  --prompt-version qwen_mvp_v2
 ```
 
 Then evaluate:
@@ -83,12 +101,14 @@ Run both models on dev before touching test:
 python -m src.experiments.run_prompting \
   --variants data/variants/dev_context_variants.jsonl \
   --out-dir results/runs/dev_qwen25_05b \
-  --model Qwen/Qwen2.5-0.5B-Instruct
+  --model Qwen/Qwen2.5-0.5B-Instruct \
+  --prompt-version qwen_mvp_v2
 
 python -m src.experiments.run_prompting \
   --variants data/variants/dev_context_variants.jsonl \
   --out-dir results/runs/dev_qwen25_15b \
-  --model Qwen/Qwen2.5-1.5B-Instruct
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --prompt-version qwen_mvp_v2
 ```
 
 Evaluate each run separately, or concatenate prediction files before evaluation if comparing both in one table.

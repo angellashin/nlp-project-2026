@@ -152,6 +152,14 @@ def run_prompting(
                 "source_id": row.get("source_id"),
                 "parent_id": row.get("parent_id"),
                 "depth": row.get("depth"),
+                "depth_bucket": row.get("depth_bucket"),
+                "parent_available": row.get("parent_available"),
+                "mixed_valid": row.get("mixed_valid"),
+                "has_conflicting_reply": row.get("has_conflicting_reply"),
+                "conflict_relation": row.get("conflict_relation"),
+                "irrelevant_relation": row.get("irrelevant_relation"),
+                "context_item_count": row.get("context_item_count"),
+                "uses_gold_labels_for_stress_test": row.get("uses_gold_labels_for_stress_test"),
                 "gold_label": row["label"],
                 "predicted_label": parsed or "invalid",
                 "metric_label": metric_label,
@@ -204,7 +212,7 @@ def main() -> None:
     parser.add_argument("--dtype", choices=["auto", "float16", "bfloat16", "float32"], default="float16")
     parser.add_argument("--device-map", default="auto")
     parser.add_argument("--max-new-tokens", type=int, default=8)
-    parser.add_argument("--prompt-version", default="qwen_mvp_v1")
+    parser.add_argument("--prompt-version", default="qwen_mvp_v2")
     parser.add_argument("--log-every", type=int, default=100)
     args = parser.parse_args()
 

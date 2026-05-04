@@ -115,8 +115,15 @@ class ContextVariantTest(unittest.TestCase):
         for variant in variants:
             self.assertNotIn("target", [item["node_id"] for item in variant["context_items"]])
             self.assertIn("Target reply:", variant["prompt_text"])
+            self.assertNotIn("Context condition:", variant["prompt_text"])
             self.assertEqual(variant["platform"], "twitter-english")
             self.assertEqual(variant["depth"], 2)
+            self.assertEqual(variant["depth_bucket"], "depth_2plus")
+            self.assertTrue(variant["parent_available"])
+            self.assertIn("context_source", variant)
+            self.assertIn("context_item_count", variant)
+            if variant["condition"] == "mixed":
+                self.assertTrue(variant["mixed_valid"])
         conflict = next(row for row in variants if row["condition"] == "conflicting")
         conflict_labels = [
             item["label_if_available"]
@@ -124,6 +131,8 @@ class ContextVariantTest(unittest.TestCase):
             if item["role"] == "conflicting_reply"
         ]
         self.assertEqual(conflict_labels, ["deny"])
+        self.assertTrue(conflict["has_conflicting_reply"])
+        self.assertEqual(conflict["conflict_relation"], "same_thread_non_path_conflict")
 
 
 if __name__ == "__main__":

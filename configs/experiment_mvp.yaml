@@ -16,7 +16,7 @@ models:
   - Qwen/Qwen2.5-1.5B-Instruct
 
 prompt:
-  version: qwen_mvp_v1
+  version: qwen_mvp_v2
   max_new_tokens: 8
   dtype: float16
   device_map: auto
@@ -26,4 +26,3 @@ paths:
   processed_dir: data/processed
   variants_dir: data/variants
   results_dir: results
-

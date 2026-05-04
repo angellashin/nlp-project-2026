@@ -76,6 +76,7 @@ RUN_TEST_ONCE = False
 
 DTYPE = "float16"
 MAX_NEW_TOKENS = 8
+PROMPT_VERSION = "qwen_mvp_v2"
 ```
 
 ## After Smoke Test Passes
@@ -147,6 +148,13 @@ results/tables/{run_id}/context_gaps.csv
 results/tables/{run_id}/summary_by_platform.csv
 results/tables/{run_id}/per_class_by_platform.csv
 results/tables/{run_id}/context_gaps_by_platform.csv
+results/tables/{run_id}/summary_by_depth_bucket.csv
+results/tables/{run_id}/summary_by_context_source.csv
+results/tables/{run_id}/summary_by_parent_available.csv
+results/tables/{run_id}/summary_by_validity_subset.csv
+results/tables/{run_id}/predicted_label_distribution.csv
+results/tables/{run_id}/paired_flip_rates.csv
+results/tables/{run_id}/paired_flip_cases.csv
 results/tables/{run_id}/confusion_*.csv
 ```
 
@@ -166,6 +174,6 @@ For teammates:
 4. Check `results/tables/dev_qwen25_05b_smoke/summary_metrics.csv`.
 5. If smoke is okay, set `RUN_FULL_DEV = True`.
 6. Run again from **0. Run Settings** onward.
-7. Share the generated `summary_metrics.csv`, `per_class_metrics.csv`, `context_gaps.csv`, platform-sliced metrics, and error cases with the team.
+7. Share the generated `summary_metrics.csv`, `per_class_metrics.csv`, `context_gaps.csv`, validity-sliced metrics, predicted-label distribution, paired-flip rates, and error cases with the team.
 
 Do not commit `data/` or `results/` outputs unless the team explicitly decides to version a small derived artifact.

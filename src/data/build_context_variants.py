@@ -58,9 +58,9 @@ def render_prompt(target: dict[str, Any], condition: str, context_items: list[di
         "- support: the target supports or agrees with the rumour.",
         "- deny: the target rejects, refutes, or disagrees with the rumour.",
         "- query: the target asks for clarification, evidence, or more information.",
-        "- comment: the target is related but does not clearly support, deny, or query.",
         "",
-        f"Context condition: {condition}",
+        "Use support, deny, or query only when the target reply explicitly expresses that stance.",
+        "If the target reply is related but does not clearly support, deny, or ask for information, choose comment.",
     ]
     if context_items:
         lines.append("Context:")
@@ -266,6 +266,22 @@ def source_from_note(note: str) -> str:
     return "none"
 
 
+def parent_available(target: dict[str, Any]) -> bool:
+    parent_id = target.get("parent_id")
+    return bool(parent_id and parent_id != target["source_id"])
+
+
+def depth_bucket(depth: Optional[int]) -> str:
+    return "depth_2plus" if depth and depth >= 2 else "depth_1"
+
+
+def first_relation(context_items: list[dict[str, Any]], role: str) -> Optional[str]:
+    for item in context_items:
+        if item["role"] == role:
+            return item.get("relation")
+    return None
+
+
 def make_variant(
     target: dict[str, Any],
     condition: str,
@@ -274,6 +290,10 @@ def make_variant(
     notes: list[str],
 ) -> dict[str, Any]:
     prompt = render_prompt(target, condition, context_items)
+    parent_ok = parent_available(target)
+    has_conflicting_reply = any(item["role"] == "conflicting_reply" for item in context_items)
+    conflict_relation = first_relation(context_items, "conflicting_reply")
+    irrelevant_relation = first_relation(context_items, "irrelevant_reply")
     return {
         "example_id": f"{target['split']}:{target['target_id']}:{condition}",
         "split": target["split"],
@@ -284,11 +304,18 @@ def make_variant(
         "source_id": target["source_id"],
         "parent_id": target.get("parent_id"),
         "depth": target.get("depth"),
+        "depth_bucket": depth_bucket(target.get("depth")),
+        "parent_available": parent_ok,
         "label": target["label"],
         "condition": condition,
         "context_items": context_items,
         "context_source": context_source,
         "construction_notes": notes,
+        "mixed_valid": condition == "mixed" and parent_ok,
+        "has_conflicting_reply": has_conflicting_reply,
+        "conflict_relation": conflict_relation,
+        "irrelevant_relation": irrelevant_relation,
+        "context_item_count": len(context_items),
         "uses_gold_labels_for_stress_test": condition in {"conflicting", "mixed"},
         "prompt_text": prompt,
         "target_text": target["target_text"],
@@ -362,6 +389,13 @@ def build_variants_for_target(target: dict[str, Any], indexes: dict[str, Any], s
 
 def validate_variant(variant: dict[str, Any]) -> None:
     target_id = variant["target_id"]
+    if "Context condition:" in variant["prompt_text"]:
+        raise AssertionError(f"Condition leaked into prompt: {variant['example_id']}")
+    for field in ["platform", "depth", "depth_bucket", "parent_available", "context_source"]:
+        if field not in variant:
+            raise AssertionError(f"Missing {field}: {variant['example_id']}")
+    if variant["mixed_valid"] and not variant["parent_available"]:
+        raise AssertionError(f"Mixed validity without parent: {variant['example_id']}")
     for item in variant["context_items"]:
         if item["node_id"] == target_id:
             raise AssertionError(f"Target leaked into context: {variant['example_id']}")
