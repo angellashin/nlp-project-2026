@@ -212,7 +212,7 @@ def main() -> None:
     parser.add_argument("--dtype", choices=["auto", "float16", "bfloat16", "float32"], default="float16")
     parser.add_argument("--device-map", default="auto")
     parser.add_argument("--max-new-tokens", type=int, default=8)
-    parser.add_argument("--prompt-version", default="qwen_mvp_v2")
+    parser.add_argument("--prompt-version", default="qwen_mvp_v3")
     parser.add_argument("--log-every", type=int, default=100)
     args = parser.parse_args()
 

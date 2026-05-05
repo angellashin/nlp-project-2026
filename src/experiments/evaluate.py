@@ -259,6 +259,37 @@ def predicted_label_distribution(rows: list[dict[str, Any]]) -> list[dict[str, A
     return output_rows
 
 
+def label_distribution_comparison(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    output_rows: list[dict[str, Any]] = []
+    for (model, condition), group_rows in sorted(group_by_dimensions(rows, ["model", "condition"]).items()):
+        gold_counts = Counter(row.get("gold_label") for row in group_rows)
+        prediction_counts = Counter(raw_prediction(row) for row in group_rows)
+        total = len(group_rows)
+        invalid_count = prediction_counts.get("invalid", 0)
+        invalid_rate = safe_div(invalid_count, total)
+        for label in LABELS:
+            gold_count = gold_counts.get(label, 0)
+            predicted_count = prediction_counts.get(label, 0)
+            gold_rate = safe_div(gold_count, total)
+            predicted_rate = safe_div(predicted_count, total)
+            output_rows.append(
+                {
+                    "model": model,
+                    "condition": condition,
+                    "label": label,
+                    "gold_count": gold_count,
+                    "gold_rate": round(gold_rate, 6),
+                    "predicted_count": predicted_count,
+                    "predicted_rate": round(predicted_rate, 6),
+                    "predicted_minus_gold_rate": round(predicted_rate - gold_rate, 6),
+                    "invalid_count": invalid_count,
+                    "invalid_rate": round(invalid_rate, 6),
+                    "n": total,
+                }
+            )
+    return output_rows
+
+
 def target_ids_where(rows: list[dict[str, Any]], predicate: Callable[[dict[str, Any]], bool]) -> set[str]:
     return {row["target_id"] for row in rows if row.get("target_id") and predicate(row)}
 
@@ -420,6 +451,26 @@ def evaluate(predictions: Path, out_dir: Path) -> dict[str, Any]:
         ["model", "condition", "predicted_label", "count", "rate", "n"],
     )
     payload["predicted_label_distribution"] = distribution_rows
+
+    label_bias_rows = label_distribution_comparison(rows)
+    write_csv(
+        out_dir / "label_distribution_comparison.csv",
+        label_bias_rows,
+        [
+            "model",
+            "condition",
+            "label",
+            "gold_count",
+            "gold_rate",
+            "predicted_count",
+            "predicted_rate",
+            "predicted_minus_gold_rate",
+            "invalid_count",
+            "invalid_rate",
+            "n",
+        ],
+    )
+    payload["label_distribution_comparison"] = label_bias_rows
 
     flip_rate_rows, flip_case_rows = paired_flip_outputs(rows)
     write_csv(out_dir / "paired_flip_rates.csv", flip_rate_rows, ["model", "event", "count", "n", "rate"])

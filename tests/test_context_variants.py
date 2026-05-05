@@ -116,6 +116,12 @@ class ContextVariantTest(unittest.TestCase):
             self.assertNotIn("target", [item["node_id"] for item in variant["context_items"]])
             self.assertIn("Target reply:", variant["prompt_text"])
             self.assertNotIn("Context condition:", variant["prompt_text"])
+            self.assertNotIn("[Parent]", variant["prompt_text"])
+            self.assertNotIn("[Irrelevant Reply]", variant["prompt_text"])
+            self.assertNotIn("[Conflicting Reply]", variant["prompt_text"])
+            if variant["context_items"]:
+                self.assertIn("Source Rumour", variant["prompt_text"])
+            self.assertIn("- comment:", variant["prompt_text"])
             self.assertEqual(variant["platform"], "twitter-english")
             self.assertEqual(variant["depth"], 2)
             self.assertEqual(variant["depth_bucket"], "depth_2plus")

@@ -82,6 +82,7 @@ class EvaluateTest(unittest.TestCase):
             self.assertTrue((tmp_path / "tables" / "summary_by_parent_available.csv").exists())
             self.assertTrue((tmp_path / "tables" / "summary_by_validity_subset.csv").exists())
             self.assertTrue((tmp_path / "tables" / "predicted_label_distribution.csv").exists())
+            self.assertTrue((tmp_path / "tables" / "label_distribution_comparison.csv").exists())
             self.assertTrue((tmp_path / "tables" / "paired_flip_rates.csv").exists())
             self.assertTrue((tmp_path / "tables" / "paired_flip_cases.csv").exists())
             useful = next(row for row in payload["summary"] if row["condition"] == "useful")
@@ -94,6 +95,13 @@ class EvaluateTest(unittest.TestCase):
                 if row["model"] == "m" and row["condition"] == "useful"
             )
             self.assertEqual(distribution_count, 2)
+            useful_support_bias = next(
+                row
+                for row in payload["label_distribution_comparison"]
+                if row["model"] == "m" and row["condition"] == "useful" and row["label"] == "support"
+            )
+            self.assertEqual(useful_support_bias["gold_count"], 1)
+            self.assertEqual(useful_support_bias["predicted_count"], 1)
 
 
 if __name__ == "__main__":

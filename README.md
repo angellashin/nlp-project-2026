@@ -20,7 +20,8 @@ This repository is for a Korea University NLP final project studying how small l
 - Labels: `support`, `deny`, `query`, `comment`.
 - Main analysis unit: labeled reply nodes, with source posts used as context.
 - Main models: small language models around 0.5B and 1.5B parameters.
-- Validity checks: platform, depth, fallback/context source, parent availability, mixed-valid subsets, predicted-label distribution, and paired prediction flips.
+- Reportable prompt version: `qwen_mvp_v3`, which removes condition-name and construction-role leakage from rendered prompts.
+- Validity checks: platform, depth, fallback/context source, parent availability, mixed-valid subsets, predicted-vs-gold label distribution, and paired prediction flips.
 
 ## Repository Policy
 

@@ -37,7 +37,9 @@ python -m src.data.build_context_variants \
 
 Outputs include `{split}_context_variants.jsonl`, `{split}_prompts_qwen.jsonl`, and coverage JSON files.
 
-The rendered prompt intentionally does not expose condition names such as `useful`, `conflicting`, or `mixed`. It also treats `comment` as the conservative fallback label when the target reply does not explicitly support, deny, or query.
+The rendered prompt intentionally does not expose condition names such as `useful`, `conflicting`, or `mixed`. As of `qwen_mvp_v3`, it also hides construction roles such as `parent`, `irrelevant_reply`, and `conflicting_reply` behind neutral prompt labels like `Conversation Post 1`. The metadata still preserves the real construction role for analysis.
+
+The prompt defines all four labels, including `comment`, and treats `comment` as the conservative fallback label when the target reply does not explicitly support, deny, or query. It also warns that context may be helpful, irrelevant, or misleading without telling the model which condition it is seeing.
 
 For C2 irrelevant context, the builder first uses same-thread non-path `comment` replies. If none exist, it falls back to same-event `comment` replies from a different thread and records `same_event_fallback_comment` in coverage metadata.
 
@@ -62,6 +64,7 @@ This should show why accuracy is misleading under class imbalance.
 The evaluator also writes:
 
 - `predicted_label_distribution.csv`
+- `label_distribution_comparison.csv`
 - `summary_by_platform.csv`
 - `summary_by_depth_bucket.csv`
 - `summary_by_context_source.csv`
@@ -82,7 +85,7 @@ python -m src.experiments.run_prompting \
   --limit 100 \
   --dtype float16 \
   --max-new-tokens 8 \
-  --prompt-version qwen_mvp_v2
+  --prompt-version qwen_mvp_v3
 ```
 
 Then evaluate:
@@ -102,13 +105,13 @@ python -m src.experiments.run_prompting \
   --variants data/variants/dev_context_variants.jsonl \
   --out-dir results/runs/dev_qwen25_05b \
   --model Qwen/Qwen2.5-0.5B-Instruct \
-  --prompt-version qwen_mvp_v2
+  --prompt-version qwen_mvp_v3
 
 python -m src.experiments.run_prompting \
   --variants data/variants/dev_context_variants.jsonl \
   --out-dir results/runs/dev_qwen25_15b \
   --model Qwen/Qwen2.5-1.5B-Instruct \
-  --prompt-version qwen_mvp_v2
+  --prompt-version qwen_mvp_v3
 ```
 
 Evaluate each run separately, or concatenate prediction files before evaluation if comparing both in one table.

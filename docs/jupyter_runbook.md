@@ -76,8 +76,10 @@ RUN_TEST_ONCE = False
 
 DTYPE = "float16"
 MAX_NEW_TOKENS = 8
-PROMPT_VERSION = "qwen_mvp_v2"
+PROMPT_VERSION = "qwen_mvp_v3"
 ```
+
+`qwen_mvp_v3` is the first reportable prompt version: it removes condition-name leakage, hides construction-role labels such as `conflicting_reply` and `irrelevant_reply` from the rendered prompt, and adds an explicit `comment` label definition. Treat older `qwen_mvp_v1/v2` runs as debugging results only.
 
 ## After Smoke Test Passes
 

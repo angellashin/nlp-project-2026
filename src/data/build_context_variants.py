@@ -49,6 +49,12 @@ def node_context_item(node: dict[str, Any], role: str, relation: str) -> dict[st
     }
 
 
+def prompt_context_label(item: dict[str, Any], reply_index: int) -> str:
+    if item["role"] == "source":
+        return "Source Rumour"
+    return f"Conversation Post {reply_index}"
+
+
 def render_prompt(target: dict[str, Any], condition: str, context_items: list[dict[str, Any]]) -> str:
     lines = [
         "Classify the stance of the target reply toward the source rumour.",
@@ -58,14 +64,19 @@ def render_prompt(target: dict[str, Any], condition: str, context_items: list[di
         "- support: the target supports or agrees with the rumour.",
         "- deny: the target rejects, refutes, or disagrees with the rumour.",
         "- query: the target asks for clarification, evidence, or more information.",
+        "- comment: the target is related but does not clearly support, deny, or ask for information.",
         "",
         "Use support, deny, or query only when the target reply explicitly expresses that stance.",
         "If the target reply is related but does not clearly support, deny, or ask for information, choose comment.",
+        "Context posts may be helpful, irrelevant, or misleading; classify only the target reply's stance.",
     ]
     if context_items:
         lines.append("Context:")
+        reply_index = 0
         for item in context_items:
-            role = item["role"].replace("_", " ").title()
+            if item["role"] != "source":
+                reply_index += 1
+            role = prompt_context_label(item, reply_index)
             text = truncate_words(item["text"], 120)
             lines.append(f"[{role}] {text}")
     else:
@@ -391,6 +402,10 @@ def validate_variant(variant: dict[str, Any]) -> None:
     target_id = variant["target_id"]
     if "Context condition:" in variant["prompt_text"]:
         raise AssertionError(f"Condition leaked into prompt: {variant['example_id']}")
+    leaked_role_markers = ["[Parent]", "[Irrelevant Reply]", "[Conflicting Reply]"]
+    for marker in leaked_role_markers:
+        if marker in variant["prompt_text"]:
+            raise AssertionError(f"Context role leaked into prompt: {variant['example_id']} {marker}")
     for field in ["platform", "depth", "depth_bucket", "parent_available", "context_source"]:
         if field not in variant:
             raise AssertionError(f"Missing {field}: {variant['example_id']}")
