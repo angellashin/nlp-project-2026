@@ -87,7 +87,9 @@ class EvaluateTest(unittest.TestCase):
             self.assertTrue((tmp_path / "tables" / "paired_flip_cases.csv").exists())
             useful = next(row for row in payload["summary"] if row["condition"] == "useful")
             self.assertEqual(useful["accuracy"], 1.0)
+            self.assertAlmostEqual(useful["macro_f1_sdq"], 2 / 3, places=6)
             self.assertGreater(payload["context_gaps"][0]["macro_f1_drop"], 0)
+            self.assertGreater(payload["context_gaps"][0]["macro_f1_sdq_drop"], 0)
             self.assertIn("platform", payload)
             distribution_count = sum(
                 int(row["count"])

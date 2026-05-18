@@ -10,6 +10,7 @@ from src.common.io import ensure_dir, read_jsonl, write_json
 
 
 LABELS = ["support", "deny", "query", "comment"]
+STANCE_LABELS = ["support", "deny", "query"]
 USEFUL_CONDITION = "useful"
 CONTEXT_GAP_PAIRS = [
     ("useful", "reply_only"),
@@ -131,6 +132,7 @@ def summarize_group(model: str, condition: str, rows: list[dict[str, Any]]) -> d
         "n": total,
         "accuracy": safe_div(correct, total),
         "macro_f1": sum(class_metrics[label]["f1"] for label in LABELS) / len(LABELS),
+        "macro_f1_sdq": sum(class_metrics[label]["f1"] for label in STANCE_LABELS) / len(STANCE_LABELS),
         "invalid_rate": safe_div(invalid, len(rows)),
         "per_class": class_metrics,
         "confusion": matrix,
@@ -149,6 +151,7 @@ def summary_to_rows(
         "n": summary["n"],
         "accuracy": round(summary["accuracy"], 6),
         "macro_f1": round(summary["macro_f1"], 6),
+        "macro_f1_sdq": round(summary["macro_f1_sdq"], 6),
         "invalid_rate": round(summary["invalid_rate"], 6),
     }
     per_class_rows = [
@@ -233,6 +236,10 @@ def context_gap_rows(summary_rows: list[dict[str, Any]], slice_keys: Optional[li
                         "from_condition": from_condition,
                         "to_condition": to_condition,
                         "macro_f1_drop": round(float(source["macro_f1"]) - float(target["macro_f1"]), 6),
+                        "macro_f1_sdq_drop": round(
+                            float(source.get("macro_f1_sdq", 0.0)) - float(target.get("macro_f1_sdq", 0.0)),
+                            6,
+                        ),
                         "accuracy_drop": round(float(source["accuracy"]) - float(target["accuracy"]), 6),
                     }
                 )
@@ -415,7 +422,16 @@ def write_standard_outputs(
     write_csv(
         out_dir / summary_name,
         summary_rows,
-        [*field_prefix, "model", "condition", "n", "accuracy", "macro_f1", "invalid_rate"],
+        [
+            *field_prefix,
+            "model",
+            "condition",
+            "n",
+            "accuracy",
+            "macro_f1",
+            "macro_f1_sdq",
+            "invalid_rate",
+        ],
     )
     write_csv(
         out_dir / per_class_name,
@@ -425,7 +441,15 @@ def write_standard_outputs(
     write_csv(
         out_dir / gap_name,
         gap_rows,
-        [*field_prefix, "model", "from_condition", "to_condition", "macro_f1_drop", "accuracy_drop"],
+        [
+            *field_prefix,
+            "model",
+            "from_condition",
+            "to_condition",
+            "macro_f1_drop",
+            "macro_f1_sdq_drop",
+            "accuracy_drop",
+        ],
     )
     key = prefix or "overall"
     payload[key] = {"summary": summary_rows, "per_class": per_class_rows, "context_gaps": gap_rows}

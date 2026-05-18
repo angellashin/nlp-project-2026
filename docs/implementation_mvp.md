@@ -73,6 +73,8 @@ The evaluator also writes:
 - `paired_flip_rates.csv`
 - `paired_flip_cases.csv`
 
+`summary_*` and `context_gaps*` include both all-label macro-F1 and `macro_f1_sdq`, the macro-F1 over the informative stance labels `support`, `deny`, and `query`. Report both because RumourEval is heavily skewed toward `comment`.
+
 `no_fallback_only` is a target-level validity subset: all non-`reply_only` conditions for that target must use same-thread context. This keeps context-gap comparisons from mixing different target sets across conditions.
 
 ## 5. Run Qwen Smoke Test
@@ -127,3 +129,17 @@ python -m src.analysis.error_analysis \
 ```
 
 The extracted cases are designed for manual inspection of prediction flips between useful and noisy context.
+
+## 8. Summarize Exported Test Tables
+
+When result CSVs are copied back from Jupyter, generate readable analysis notes:
+
+```bash
+python -m src.analysis.summarize_result_tables \
+  --tables-dir "Test Results" \
+  --notebook "Test Results/rumoureval_mvp_runner (6).ipynb" \
+  --analysis-out docs/test_results_analysis.md \
+  --onboarding-out docs/team_onboarding_test_results.md
+```
+
+This report is read-only with respect to test predictions. Use it to interpret the result tables, not to tune prompt/context rules after seeing test performance.
