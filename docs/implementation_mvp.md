@@ -143,3 +143,14 @@ python -m src.analysis.summarize_result_tables \
 ```
 
 This report is read-only with respect to test predictions. Use it to interpret the result tables, not to tune prompt/context rules after seeing test performance.
+
+## 9. V2 Research Extension
+
+The recommended next-stage experiment is documented in `docs/v2_experiment_plan.md`. It adds:
+
+- validity-controlled challenge sets,
+- forced-choice label scoring,
+- LoRA-C0 vs LoRA-C1 fine-tuning,
+- probability/margin-based context sensitivity metrics.
+
+Use this when the zero-shot generation results are too label-biased to support a clean noisy-context harm claim.

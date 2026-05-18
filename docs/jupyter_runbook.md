@@ -179,3 +179,70 @@ For teammates:
 7. Share the generated `summary_metrics.csv`, `per_class_metrics.csv`, `context_gaps.csv`, validity-sliced metrics, predicted-label distribution, paired-flip rates, and error cases with the team.
 
 Do not commit `data/` or `results/` outputs unless the team explicitly decides to version a small derived artifact.
+
+## V2 Research Extension In Jupyter Terminal
+
+After the MVP smoke/dev pipeline works, run V2 from the Jupyter terminal rather than editing many notebook cells.
+
+Build validity-controlled subsets:
+
+```bash
+python -m src.data.build_challenge_sets \
+  --variants data/variants/dev_context_variants.jsonl \
+  --out-dir data/challenge \
+  --split dev
+```
+
+The most useful generated files are:
+
+```text
+data/challenge/dev_complete_variants.jsonl
+data/challenge/dev_complete_balanced_variants.jsonl
+data/challenge/dev_strict_variants.jsonl
+```
+
+Use `complete_balanced` for minority-class analysis and `strict` for validity-controlled context claims.
+
+Run forced-choice label scoring on dev:
+
+```bash
+python -m src.experiments.run_label_scoring \
+  --variants data/challenge/dev_complete_variants.jsonl \
+  --out-dir results/runs/dev_qwen25_15b_scoring_complete \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --dtype float16 \
+  --selection mean \
+  --prompt-version qwen_mvp_v3
+
+python -m src.experiments.evaluate \
+  --predictions results/runs/dev_qwen25_15b_scoring_complete/predictions.jsonl \
+  --out-dir results/tables/dev_qwen25_15b_scoring_complete
+
+python -m src.experiments.evaluate_sensitivity \
+  --predictions results/runs/dev_qwen25_15b_scoring_complete/predictions.jsonl \
+  --out-dir results/tables/dev_qwen25_15b_scoring_complete_sensitivity
+```
+
+Train the two LoRA intervention models:
+
+```bash
+python -m src.experiments.run_lora_finetune \
+  --train-variants data/variants/train_context_variants.jsonl \
+  --out-dir checkpoints/qwen25_15b_lora_c0 \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --condition reply_only \
+  --dtype float16 \
+  --gradient-checkpointing
+
+python -m src.experiments.run_lora_finetune \
+  --train-variants data/variants/train_context_variants.jsonl \
+  --out-dir checkpoints/qwen25_15b_lora_c1 \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --condition useful \
+  --dtype float16 \
+  --gradient-checkpointing
+```
+
+Then score each adapter with `run_label_scoring --adapter checkpoints/...` and evaluate with both `evaluate` and `evaluate_sensitivity`.
+
+Use `docs/v2_experiment_plan.md` as the canonical V2 protocol. Keep new intervention development on dev first; only run test after the V2 protocol is frozen.

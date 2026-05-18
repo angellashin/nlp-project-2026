@@ -2,6 +2,7 @@
 torch
 transformers
 accelerate
+peft
 sentencepiece
 protobuf
 PyYAML
@@ -9,4 +10,3 @@ PyYAML
 # Optional plotting/notebook analysis
 matplotlib
 jupyter
-

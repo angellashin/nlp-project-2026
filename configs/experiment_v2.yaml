@@ -1,0 +1,64 @@
+seed: 461
+
+goal: context_reliance_vs_robustness
+
+splits:
+  - train
+  - dev
+  - test
+
+conditions:
+  - reply_only
+  - useful
+  - irrelevant
+  - conflicting
+  - mixed
+
+challenge_sets:
+  presets:
+    - complete
+    - complete_balanced
+    - same_thread
+    - parent_available
+    - strict
+    - strict_balanced
+  validity_preset: strict
+  class_balance_preset: complete_balanced
+
+models:
+  base:
+    - Qwen/Qwen2.5-0.5B-Instruct
+    - Qwen/Qwen2.5-1.5B-Instruct
+  lora_main_model: Qwen/Qwen2.5-1.5B-Instruct
+
+prompt:
+  version: qwen_mvp_v3
+  dtype: float16
+  device_map: auto
+
+label_scoring:
+  selection: mean
+  score_key: mean_logprob
+  bootstrap_rounds: 1000
+
+lora:
+  train_conditions:
+    - reply_only
+    - useful
+  epochs: 2.0
+  learning_rate: 0.0002
+  batch_size: 2
+  gradient_accumulation_steps: 8
+  max_length: 1024
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  gradient_checkpointing: true
+
+paths:
+  raw_dir: data/raw/rumoureval2019
+  processed_dir: data/processed
+  variants_dir: data/variants
+  challenge_dir: data/challenge
+  results_dir: results
+  checkpoints_dir: checkpoints
